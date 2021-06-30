@@ -10,13 +10,7 @@ class MarsApp {
     port = 8000;
     router = express.Router();
 
-    key = nasaAPIKey;
-
-    /*
-     * Trim a PhotosResponse to a PhotosTrimmedResponse.
-     * Keep only photo id, img_src and earth_date.
-     */
-    
+    key = nasaAPIKey;    
     
     /*
      * Returns the list of rovers in JSON format.
