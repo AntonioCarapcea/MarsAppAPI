@@ -1,6 +1,6 @@
 import express from 'express';
 import { readFileSync } from 'fs';
-import axios, {AxiosResponse} from 'axios';
+import axios, { AxiosResponse } from 'axios';
 import {nasaAPIKey} from './key'
 
 class MarsApp {
