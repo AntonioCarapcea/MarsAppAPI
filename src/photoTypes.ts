@@ -1,3 +1,8 @@
+/*
+ * This file contains the interfaces for the objects returned in a photo query to the NASA server.
+ * It also has interfaces for the trimmed versions served by this server.
+ */
+
 export interface Camera {
     id: number;
     name: string;
