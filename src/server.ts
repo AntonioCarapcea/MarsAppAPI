@@ -19,16 +19,13 @@ class MarsApp {
     }
 
     /*
-     * Returns the list of rovers in JSON format.
-     * Sends a GET request to api.nasa.gov.
-     * Requires an API key.
+     * Returns a promise to the data of the response to a GET request on the given path.
      */
-    async GetRoverList(key: string) : Promise<string> {
-        const roverPath = 'https://api.nasa.gov/mars-photos/api/v1/rovers' + '?api_key=' + key;
+    async GetDataFromGet(path : string) {
         let ret : string = "";
 
         try {
-            const response = await axios.get(roverPath);
+            const response = await axios.get(path);
             ret = response.data;
         } catch (exception) {
             console.error(exception);
@@ -38,12 +35,42 @@ class MarsApp {
     }
 
     /*
-     * Setup /rovers path for the server.
+     * Returns the list of rovers in JSON format.
+     * Sends a GET request to api.nasa.gov.
+     * Requires an API key.
      */
-    SetupRoversPath(key: string) : void {
+    GetRoverList(key: string) : Promise<string> {
+        const roverPath = 'https://api.nasa.gov/mars-photos/api/v1/rovers' + '?api_key=' + key;
+
+        return this.GetDataFromGet(roverPath);
+    }
+
+    /*
+     * Get photos for the curiosity rover.
+     * sol is hardcoded to 1000
+     * The camera is hardcoded to FHAZ.
+     */
+    GetCuriosityPhotos(key: string) : Promise<string> {
+        const path = 'https://api.nasa.gov/mars-photos/api/v1/rovers/curiosity/photos?sol=1000&camera=fhaz&api_key=' + key;
+        
+        return this.GetDataFromGet(path);
+    }
+
+    /*
+     * Setup /rovers endpoint for the server.
+     */
+    SetupRoversEndpoint(key: string) : void {
         this.router.get('/rovers', (req, res) => {
             this.GetRoverList(key)
                 .then(rovers => res.send(rovers))
+                .catch(err => console.log(err));
+        });
+    }
+
+    SetupPhotosEndpoint(key: string) : void {
+        this.router.get('/photos', (req, res) => {
+            this.GetCuriosityPhotos(key)
+                .then(photos => res.send(photos))
                 .catch(err => console.log(err));
         });
     }
@@ -53,7 +80,9 @@ class MarsApp {
 
         this.key = this.ReadAPIKey();
  
-        this.SetupRoversPath(this.key);
+        this.SetupRoversEndpoint(this.key);
+
+        this.SetupPhotosEndpoint(this.key);
     
         this.app.use('/', this.router);
          
@@ -64,4 +93,4 @@ class MarsApp {
 }
 
 
-let  app : MarsApp = new MarsApp();
+let app : MarsApp = new MarsApp();
