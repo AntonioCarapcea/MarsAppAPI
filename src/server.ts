@@ -1,48 +1,32 @@
 import express from 'express';
 import { readFileSync } from 'fs';
-import axios, {AxiosResponse} from 'axios';
+import axios, { AxiosResponse } from 'axios';
+import {Camera, Rover, Photo, PhotosResponse, PhotoTrimmed, PhotosTrimmedResponse, TrimPhotos} from './photoTypes'
 
-class MarsApp {
-    
+import {nasaAPIKey} from './key'
+
+class MarsApp {    
     app = express();
     port = 8000;
     router = express.Router();
 
-    // path to the NASA API key
-    KEY_PATH = 'res/key';
-
-    key : string = "";
-    
-    ReadAPIKey(): string {
-        let ret : string = readFileSync(this.KEY_PATH).toString();
-        return ret;
-    }
+    key = nasaAPIKey;
 
     /*
-     * Returns a promise to the data of the response to a GET request on the given path.
+     * Trim a PhotosResponse to a PhotosTrimmedResponse.
+     * Keep only photo id, img_src and earth_date.
      */
-    async GetDataFromGet(path : string) {
-        let ret : string = "";
-
-        try {
-            const response = await axios.get(path);
-            ret = response.data;
-        } catch (exception) {
-            console.error(exception);
-        }
-
-        return ret;
-    }
-
+    
+    
     /*
      * Returns the list of rovers in JSON format.
      * Sends a GET request to api.nasa.gov.
      * Requires an API key.
      */
-    GetRoverList(key: string) {
-        const roverPath = 'https://api.nasa.gov/mars-photos/api/v1/rovers' + '?api_key=' + key;
+    GetRovers(key: string) {
+        const path = 'https://api.nasa.gov/mars-photos/api/v1/rovers' + '?api_key=' + key;
 
-        return this.GetDataFromGet(roverPath);
+        return axios.get(path);
     }
 
     /*
@@ -51,16 +35,22 @@ class MarsApp {
      * The camera is hardcoded to FHAZ.
      */
     GetCuriosityPhotos(key: string) {
-        const path = 'https://api.nasa.gov/mars-photos/api/v1/rovers/curiosity/photos?sol=1000&camera=fhaz&api_key=' + key;
+        const path = 'https://api.nasa.gov/mars-photos/api/v1/rovers/curiosity/photos?sol=1000'
+            + ' &camera=fhaz&api_key=' + key;
         
-        return this.GetDataFromGet(path);
+        return axios.get(path);
     }
 
+
+    /*
+     * Return a PhotoResponse object.
+     * Contains photo information for a specific rover, camera and sol.
+     */
     GetRoverPhotos(key: string, roverName: string, cameraType: string, sol: number = 1000) {
         const path = 'https://api.nasa.gov/mars-photos/api/v1/rovers/' + roverName +
-            '/photos?sol=' + sol + '&camera=' + cameraType + '&api_key=' + key;
+            '/photos?sol=' + sol.toString() + '&camera=' + cameraType + '&api_key=' + key;
 
-        return this.GetDataFromGet(path);
+        return axios.get<PhotosResponse>(path);
     }
 
     /*
@@ -68,8 +58,8 @@ class MarsApp {
      */
     SetupRoversEndpoint(key: string) : void {
         this.router.get('/rovers', (req, res) => {
-            this.GetRoverList(key)
-                .then(rovers => res.send(rovers))
+            this.GetRovers(key)
+                .then(rovers => res.send(rovers.data))
                 .catch(err => console.log(err));
         });
     }
@@ -81,18 +71,44 @@ class MarsApp {
     SetupPhotosEndpoint(key: string) : void {
         this.router.get('/photos', (req, res) => {
             this.GetCuriosityPhotos(key)
-                .then(photos => res.send(photos))
+                .then(photos => res.send(photos.data))
                 .catch(err => console.log(err));
         });
     }
 
-    SetupRoverPhotosEndpoint(key: string) : void {
+    /*
+     * Setup endpoint of the type /rovers/rovername/photos/cameratype.
+     * The query uses the default sol of 1000.
+     */
+    SetupRoverPhotosEndpointDefaultSol(key: string) : void {
         this.router.get('/rovers/:roverName/photos/:cameraType', (req, res) => {
             const roverName = req.params.roverName;
             const cameraType = req.params.cameraType;
 
             this.GetRoverPhotos(key, roverName, cameraType)
-                .then(photos => res.send(photos))
+                .then(photos => {
+                    const trimmed : PhotosTrimmedResponse = TrimPhotos(photos.data);
+                    res.send(trimmed);
+                })
+                .catch(err => console.log(err));
+        });
+    }
+
+    /*
+     * Setup an endpoint of the type /rovers/rovername/photos/cameratype/sol.
+     */
+    SetupRoverPhotosEndpoint(key: string) : void {
+        this.router.get('/rovers/:roverName/photos/:cameraType/:sol', (req, res) => {
+            const roverName = req.params.roverName;
+            const cameraType = req.params.cameraType;
+            const sol = parseInt(req.params.sol);
+
+
+            this.GetRoverPhotos(key, roverName, cameraType, sol)
+                .then(photos => {
+                    const trimmed : PhotosTrimmedResponse = TrimPhotos(photos.data);
+                    res.send(trimmed);
+                })
                 .catch(err => console.log(err));
         });
     }
@@ -100,11 +116,11 @@ class MarsApp {
     constructor() {
         this.app.use(express.json());
 
-        this.key = this.ReadAPIKey();
- 
         this.SetupRoversEndpoint(this.key);
 
         this.SetupPhotosEndpoint(this.key);
+
+        this.SetupRoverPhotosEndpointDefaultSol(this.key);
 
         this.SetupRoverPhotosEndpoint(this.key);
     
