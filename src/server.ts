@@ -1,13 +1,23 @@
-import express from "express";
- 
-const app = express();
-const port = 8000;
- 
-app.use(express.json());
-const router = express.Router();
-router.get('/test', (req, res) => res.send('Hello world !'));
-app.use('/', router);
- 
-app.listen(port, () => {
-  console.log(`Test backend is running on port ${port}`);
-});
+import express from 'express';
+import { nasaAPIKey } from './key'
+import router from './router'
+
+class MarsApp {    
+    app = express();
+    port = 8000; 
+    
+    key = nasaAPIKey;    
+    
+    constructor() {
+        this.app.use(express.json());
+
+        this.app.use('/', router);
+         
+        this.app.listen(this.port, () => {
+            console.log(`Test backend is running on port ${this.port}`);
+        });
+    }
+}
+
+
+let app : MarsApp = new MarsApp();
